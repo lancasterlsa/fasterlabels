@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>community card labels (less arduous edition)</title>
+
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+}
+
+textarea {
+    width: 100%;
+    height: 140px;
+    margin-bottom: 10px;
+}
+
+button {
+    padding: 10px 14px;
+    margin-right: 5px;
+    cursor: pointer;
+}
+
+/* A4 sheet */
+.sheet {
+    position: relative;
+    width: 210mm;
+    height: 297mm;
+    background: white;
+    margin-top: 20px;
+}
+
+/* Avery L7159 labels */
+.label {
+    position: absolute;
+    width: 63.5mm;
+    height: 33.9mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.label svg {
+    width: 90%;
+}
+
+.code {
+    font-size: 13pt;
+    margin-top: 2px;
+    color: #000;
+}
+
+/* Print settings */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+
+    .sheet, .sheet * {
+        visibility: visible;
+    }
+
+    .sheet {
+        position: absolute;
+        left: 0;
+        top: 0;
+    }
+}
+</style>
+</head>
+<body>
+
+<h2>Community Card Labels Made Easy</h2>
+
+<p>Enter up to 24 numbers (one per line):</p>
+<textarea id="input"></textarea>
+
+<br>
+<button onclick="generate()">Generate</button>
+<button onclick="window.print()">Print</button>
+<button onclick="exportPDF()">Export PDF</button>
+
+<div id="output" class="sheet"></div>
+
+<script>
+// Avery L7159 measurements (mm)
+const startX = 7;
+const startY = 15;
+const pitchX = 66.5;
+const pitchY = 35.6;
+
+function generate() {
+    const input = document.getElementById('input').value
+        .split('\n')
+        .map(x => x.trim())
+        .filter(x => x !== '')
+        .slice(0, 24);
+
+    const output = document.getElementById('output');
+    output.innerHTML = '';
+
+    input.forEach((value, i) => {
+        const col = i % 3;
+        const row = Math.floor(i / 3);
+
+        const label = document.createElement('div');
+        label.className = 'label';
+
+        label.style.left = (startX + col * pitchX) + 'mm';
+        label.style.top = (startY + row * pitchY) + 'mm';
+
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+
+        try {
+            JsBarcode(svg, value, {
+                format: "CODE128",
+                displayValue: false,
+                height: 28,
+                margin: 0
+            });
+        } catch {
+            svg.textContent = "Invalid";
+        }
+
+        const text = document.createElement('div');
+        text.className = 'code';
+        text.textContent = value;
+
+        label.appendChild(svg);
+        label.appendChild(text);
+        output.appendChild(label);
+    });
+}
+
+async function exportPDF() {
+    const { jsPDF } = window.jspdf;
+
+    const sheet = document.getElementById('output');
+    sheet.style.background = "white";
+
+    const canvas = await html2canvas(sheet, {
+        scale: 2,
+        useCORS: true
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+
+    const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+    });
+
+    pdf.addImage(imgData, 'PNG', 0, 0, 210, 297);
+    pdf.save('barcodes.pdf');
+}
+</script>
+
+</body>
+</html>
